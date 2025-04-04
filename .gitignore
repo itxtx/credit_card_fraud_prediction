@@ -13,3 +13,5 @@ htmlcov/
 
 # CSV files
 *.csv
+
+.git.bak/

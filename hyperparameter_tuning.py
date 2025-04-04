@@ -6,6 +6,8 @@ from sklearn.metrics import make_scorer, precision_recall_curve, auc
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 # Custom scorer for AUPRC
 def auprc_scorer(y_true, y_score):
@@ -14,33 +16,62 @@ def auprc_scorer(y_true, y_score):
     return auc(recall, precision)
 
 # Wrapper class for Isolation Forest to work with GridSearchCV
-class IsolationForestClassifier:
+class IsolationForestClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self, contamination=0.01, n_estimators=100, max_samples='auto', random_state=42):
         self.contamination = contamination
         self.n_estimators = n_estimators
         self.max_samples = max_samples
         self.random_state = random_state
+        self.model = None
+    
+    def fit(self, X, y=None):
+        """Fit the model according to the given training data."""
+        # Check that X and y have correct shape
+        if y is not None:
+            X, y = check_X_y(X, y)
+        
         self.model = IsolationForest(
             contamination=self.contamination,
             n_estimators=self.n_estimators,
             max_samples=self.max_samples,
             random_state=self.random_state
         )
-    
-    def fit(self, X, y=None):
         self.model.fit(X)
         return self
     
     def predict(self, X):
+        """Predict class labels for samples in X."""
+        check_is_fitted(self, 'model')
+        X = check_array(X)
         preds = self.model.predict(X)
         return np.where(preds == -1, 1, 0)
     
     def score_samples(self, X):
-        return -self.model.score_samples(X)  # Negative because lower = more anomalous
+        """Return the anomaly score of the samples."""
+        check_is_fitted(self, 'model')
+        X = check_array(X)
+        return -self.model.score_samples(X)
     
     def decision_function(self, X):
-        # For compatibility with GridSearchCV
+        """Compute the decision function of the samples."""
+        check_is_fitted(self, 'model')
+        X = check_array(X)
         return -self.model.score_samples(X)
+    
+    def get_params(self, deep=True):
+        """Get parameters for this estimator."""
+        return {
+            'contamination': self.contamination,
+            'n_estimators': self.n_estimators,
+            'max_samples': self.max_samples,
+            'random_state': self.random_state
+        }
+    
+    def set_params(self, **params):
+        """Set the parameters of this estimator."""
+        for key, value in params.items():
+            setattr(self, key, value)
+        return self
 
 # Wrapper class for LOF to work with GridSearchCV
 class LOFClassifier:

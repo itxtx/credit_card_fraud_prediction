@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import precision_recall_curve, auc
+import credit_card_fraud_utils as ccf
 
 def evaluate_resampling_strategy(X, y, strategy, config, n_splits=5, sampling_ratio='auto'):
     """
@@ -104,7 +105,7 @@ def evaluate_resampling_strategy(X, y, strategy, config, n_splits=5, sampling_ra
         'LOF_ROC_AUC_std': np.std(cv_scores_lof_roc)
     }
 
-def evaluate_all_resampling_strategies(X, y, config):
+def evaluate_all_resampling_strategies(X, y, config, sample_size=None):
     """
     Evaluate all resampling strategies.
     
@@ -116,17 +117,56 @@ def evaluate_all_resampling_strategies(X, y, config):
         Target variable
     config : Config object
         Configuration parameters
+    sample_size : int or None
+        If specified, randomly sample this many instances while maintaining class distribution
+        If None, use the full dataset
         
     Returns:
     --------
     DataFrame
         Results of all strategies
     """
+    # If sample_size is specified, take a stratified sample
+    if sample_size is not None:
+        print(f"Taking a stratified sample of {sample_size} instances...")
+        from sklearn.model_selection import train_test_split
+        
+        # Calculate class distribution
+        class_counts = y.value_counts()
+        minority_class = class_counts.idxmin()
+        majority_class = class_counts.idxmax()
+        
+        # Ensure we have at least 100 samples of the minority class
+        min_minority_samples = 100
+        min_majority_samples = min_minority_samples * 5  # Keep 5:1 ratio
+        
+        # Calculate required sample size based on class distribution
+        minority_ratio = class_counts[minority_class] / len(y)
+        required_minority = max(min_minority_samples, int(sample_size * minority_ratio))
+        required_majority = min(required_minority * 5, int(sample_size * (1 - minority_ratio)))
+        
+        required_size = required_minority + required_majority
+        
+        if sample_size < required_size:
+            print(f"Warning: sample_size {sample_size} is too small. Using {required_size} instead.")
+            sample_size = required_size
+        
+        X_sample, _, y_sample, _ = train_test_split(
+            X, y,
+            train_size=sample_size,
+            stratify=y,
+            random_state=config.RANDOM_STATE
+        )
+        print(f"Sample class distribution: {dict(sorted(y_sample.value_counts().items()))}")
+    else:
+        X_sample, y_sample = X, y
+    
     # Define strategies to evaluate
     strategies = ['none', 'ros', 'rus', 'smote', 'adasyn', 'nearmiss', 'tomek', 'enn', 'smote-tomek', 'smote-enn']
     
-    # For sampling ratios (for strategies that use them)
-    sampling_ratios = [0.1, 0.2, 'auto']  
+    # Define sampling ratios based on strategy type
+    over_sampling_ratios = [0.1, 0.2, 'auto']  # For over-sampling methods
+    under_sampling_ratios = [0.001, 0.0005, 0.0001]  # For under-sampling methods (more conservative)
     
     # Store results
     results = []
@@ -136,12 +176,17 @@ def evaluate_all_resampling_strategies(X, y, config):
         print(f"Evaluating strategy: {strategy}")
         
         if strategy in ['none', 'tomek', 'enn']:  # These don't use sampling_ratio or use default
-            result = evaluate_resampling_strategy(X, y, strategy, config)
+            result = evaluate_resampling_strategy(X_sample, y_sample, strategy, config)
             results.append(result)
-        else:  # Test different sampling ratios
-            for ratio in sampling_ratios:
+        elif strategy in ['rus', 'nearmiss']:  # Under-sampling methods
+            for ratio in under_sampling_ratios:
                 print(f"  With sampling ratio: {ratio}")
-                result = evaluate_resampling_strategy(X, y, strategy, config, sampling_ratio=ratio)
+                result = evaluate_resampling_strategy(X_sample, y_sample, strategy, config, sampling_ratio=ratio)
+                results.append(result)
+        else:  # Over-sampling methods
+            for ratio in over_sampling_ratios:
+                print(f"  With sampling ratio: {ratio}")
+                result = evaluate_resampling_strategy(X_sample, y_sample, strategy, config, sampling_ratio=ratio)
                 results.append(result)
     
     # Convert results to DataFrame for analysis
