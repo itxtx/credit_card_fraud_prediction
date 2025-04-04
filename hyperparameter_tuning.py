@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import credit_card_fraud_utils as ccf
 from sklearn.metrics import make_scorer, precision_recall_curve, auc
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.ensemble import IsolationForest
