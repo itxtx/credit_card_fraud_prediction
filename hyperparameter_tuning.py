@@ -23,6 +23,7 @@ class IsolationForestClassifier(BaseEstimator, ClassifierMixin):
         self.max_samples = max_samples
         self.random_state = random_state
         self.model = None
+        self.classes_ = np.array([0, 1])  # Add classes_ attribute
     
     def fit(self, X, y=None):
         """Fit the model according to the given training data."""
@@ -58,6 +59,16 @@ class IsolationForestClassifier(BaseEstimator, ClassifierMixin):
         X = check_array(X)
         return -self.model.score_samples(X)
     
+    def predict_proba(self, X):
+        """Predict class probabilities for samples in X."""
+        check_is_fitted(self, 'model')
+        X = check_array(X)
+        scores = self.decision_function(X)
+        # Convert scores to probabilities using sigmoid
+        proba = 1 / (1 + np.exp(-scores))
+        # Return probabilities for both classes
+        return np.column_stack([1 - proba, proba])
+    
     def get_params(self, deep=True):
         """Get parameters for this estimator."""
         return {
@@ -74,7 +85,7 @@ class IsolationForestClassifier(BaseEstimator, ClassifierMixin):
         return self
 
 # Wrapper class for LOF to work with GridSearchCV
-class LOFClassifier:
+class LOFClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self, n_neighbors=20, contamination=0.01):
         self.n_neighbors = n_neighbors
         self.contamination = contamination
@@ -83,6 +94,7 @@ class LOFClassifier:
             contamination=self.contamination,
             novelty=True
         )
+        self.classes_ = np.array([0, 1])  # Add classes_ attribute
     
     def fit(self, X, y=None):
         self.model.fit(X)
@@ -98,6 +110,33 @@ class LOFClassifier:
     def decision_function(self, X):
         # For compatibility with GridSearchCV
         return -self.model.score_samples(X)
+    
+    def predict_proba(self, X):
+        """Predict class probabilities for samples in X."""
+        scores = self.decision_function(X)
+        # Convert scores to probabilities using sigmoid
+        proba = 1 / (1 + np.exp(-scores))
+        # Return probabilities for both classes
+        return np.column_stack([1 - proba, proba])
+    
+    def get_params(self, deep=True):
+        """Get parameters for this estimator."""
+        return {
+            'n_neighbors': self.n_neighbors,
+            'contamination': self.contamination
+        }
+    
+    def set_params(self, **params):
+        """Set the parameters of this estimator."""
+        for key, value in params.items():
+            setattr(self, key, value)
+        # Update the underlying model with new parameters
+        self.model = LocalOutlierFactor(
+            n_neighbors=self.n_neighbors,
+            contamination=self.contamination,
+            novelty=True
+        )
+        return self
 
 def tune_isolation_forest(X, y, best_resampling_strategy, best_sampling_ratio, config):
     """
@@ -132,6 +171,14 @@ def tune_isolation_forest(X, y, best_resampling_strategy, best_sampling_ratio, c
     else:
         X_resampled, y_resampled = X, y
     
+    # Sample a smaller subset for cross-validation
+    sample_size = min(10000, len(X_resampled))
+    if sample_size < len(X_resampled):
+        X_sampled = X_resampled.sample(n=sample_size, random_state=config.RANDOM_STATE)
+        y_sampled = y_resampled[X_sampled.index]
+    else:
+        X_sampled, y_sampled = X_resampled, y_resampled
+    
     # Define parameter grid
     param_grid = {
         'contamination': [0.001, 0.005, 0.01, 0.02, 0.05, 0.1],
@@ -156,7 +203,7 @@ def tune_isolation_forest(X, y, best_resampling_strategy, best_sampling_ratio, c
         verbose=1
     )
     
-    grid_search.fit(X_resampled, y_resampled)
+    grid_search.fit(X_sampled, y_sampled)
     
     # Get best parameters and score
     best_params = grid_search.best_params_

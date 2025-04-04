@@ -15,3 +15,5 @@ htmlcov/
 *.csv
 
 .git.bak/
+
+*.png
