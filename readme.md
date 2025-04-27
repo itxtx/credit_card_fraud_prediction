@@ -79,7 +79,8 @@ XGBoost (Extreme Gradient Boosting) was evaluated as a more complex supervised l
 **Hyperparameter Tuning (RandomizedSearchCV):**
 
 * A broad `RandomizedSearchCV` (75 iterations, 5-fold CV) was performed, optimizing for F1-score. It explored various XGBoost hyperparameters (`n_estimators`, `learning_rate`, `max_depth`, `subsample`, `colsample_bytree`, `gamma`, `reg_alpha`, `reg_lambda`) combined with different resampling strategies or `scale_pos_weight`.
-* **Best Model Found & Performance:**
+* **Note:** The search process was interrupted (`KeyboardInterrupt`). However, the `best_estimator_` found *before* the interruption was evaluated.
+* **Best Model Found (Pre-Interruption) & Performance:**
     * The best configuration identified involved **no resampling** and `scale_pos_weight=1` (i.e., not using the calculated weight). Specific XGBoost parameters were determined by the search but not explicitly printed before interruption.
     * **Test Set Performance Metrics:**
         * Accuracy: 0.9996
@@ -138,6 +139,93 @@ XGBoost (Extreme Gradient Boosting) was evaluated as a more complex supervised l
 * Precision-Recall and ROC curves were generated for this best model.
 
 **Conclusion for XGBoost:** XGBoost significantly outperformed the optimized Logistic Regression model. The best configuration, found via Bayesian optimization after an initial randomized search, achieved a much higher F1-score (0.8876 vs 0.6951) and Recall (0.8061 vs 0.5816) while maintaining very high precision (0.9875). Interestingly, the best performance was achieved *without* explicit resampling or using the `scale_pos_weight` parameter, relying instead on the model's inherent capabilities and regularization found during tuning.
+
+## 1.3. Random Forest
+
+Random Forest was also evaluated as a supervised learning model.
+
+**Preprocessing and Imbalance Handling:**
+
+* Data was scaled using `StandardScaler`.
+* A `Pipeline` was used to integrate scaling, optional resampling, and the RandomForestClassifier.
+* Both explicit resampling techniques (SMOTE, ADASYN, Over/Under-sampling, etc.) and Random Forest's internal `class_weight` parameter (`balanced`, `balanced_subsample`) were explored during hyperparameter tuning.
+
+**Hyperparameter Tuning (RandomizedSearchCV):**
+
+* A `RandomizedSearchCV` (75 iterations, 5-fold CV) optimizing for F1-score explored various Random Forest hyperparameters (`n_estimators`, `max_depth`, `max_features`, `min_samples_split`, `min_samples_leaf`) combined with different resampling strategies or `class_weight` settings.
+* **Best Model Found & Parameters:**
+    * The best configuration involved **RandomOverSampler** with `sampling_strategy=0.7` and no internal class weighting (`class_weight=None`).
+    * **Best Parameters:**
+        ```python
+        {
+            'resampler__sampling_strategy': 0.7,
+            'resampler': RandomOverSampler(random_state=42),
+            'classifier__n_estimators': 200,
+            'classifier__min_samples_split': 5,
+            'classifier__min_samples_leaf': 3,
+            'classifier__max_features': 'sqrt',
+            'classifier__max_depth': 30,
+            'classifier__class_weight': None,
+            'classifier__bootstrap': True
+        }
+        ```
+    * **Best CV F1 Score:** 0.8556
+* **Test Set Performance Metrics (RandomizedSearch Best):**
+    * Accuracy: 0.9996
+    * Precision: 0.9405
+    * Recall: 0.8061
+    * F1-score: 0.8681
+    * AUPRC: 0.8823
+    * AUROC: 0.9719
+    * Recall at 0.5% FPR: 0.8878
+    * Precision at 0.5% Recall: 1.0000
+    * Matthews Correlation Coefficient (MCC): 0.8705
+    * Kolmogorov-Smirnov (KS) Statistic: 0.9091
+    * Confusion Matrix:
+        ```
+        [[56859     5]
+         [   19    79]]
+        ```
+
+**Hyperparameter Tuning (BayesSearchCV):**
+
+* A focused `BayesSearchCV` (10 iterations, 5-fold CV) was conducted, refining parameters around the best RandomizedSearch results (fixing `resampler=RandomOverSampler(sampling_strategy=0.7)`, `class_weight=None`).
+* **Best Model Found & Parameters:**
+    * **Preprocessing:** `StandardScaler`
+    * **Resampling:** `RandomOverSampler(sampling_strategy=0.7, random_state=42)`
+    * **Model:** `RandomForestClassifier` with parameters:
+        ```python
+        {
+            'classifier__bootstrap': True,
+            'classifier__class_weight': None,
+            'classifier__max_depth': 39,
+            'classifier__max_features': 'sqrt',
+            'classifier__min_samples_leaf': 3,
+            'classifier__min_samples_split': 5,
+            'classifier__n_estimators': 228,
+            'resampler': RandomOverSampler(random_state=42, sampling_strategy=0.7) # Explicitly shown
+        }
+        ```
+    * **Best CV F1 Score:** 0.8556 (Note: Same as RandomizedSearch best, suggesting convergence or limited search space benefit in 10 iterations)
+* **Test Set Performance Metrics (BayesSearch Best):**
+    * Accuracy: 0.9996
+    * Precision: 0.9518
+    * Recall: 0.8061
+    * F1-score: 0.8729
+    * AUPRC: 0.8834
+    * AUROC: 0.9720
+    * Recall at 0.5% FPR: 0.8878
+    * Precision at 0.5% Recall: 1.0000
+    * Matthews Correlation Coefficient (MCC): 0.8757
+    * Kolmogorov-Smirnov (KS) Statistic: 0.9229
+    * Confusion Matrix:
+        ```
+        [[56860     4]
+         [   19    79]]
+        ```
+* Precision-Recall, ROC, and convergence plots were generated.
+
+**Conclusion for Random Forest:** The optimized Random Forest model performed significantly better than Logistic Regression and achieved results comparable to XGBoost in terms of F1-score (0.8729 vs 0.8876) and Recall (0.8061 vs 0.8061), although with slightly lower precision (0.9518 vs 0.9875). Unlike XGBoost, the best Random Forest model benefited from explicit resampling (RandomOverSampler). However, Random Forest training, especially during hyperparameter search, was noted to be computationally more expensive than XGBoost.
 
 # 2. Unsupervised Learning
 
