@@ -17,3 +17,6 @@ htmlcov/
 .git.bak/
 
 *.png
+
+
+*.pkl
