@@ -1,6 +1,6 @@
 # Credit Card Fraud Detection Analysis Report
 
-This report summarizes the findings from analyzing a credit card transaction dataset to detect fraudulent activities. The analysis covers both supervised learning using Logistic Regression and XGBoost, as well as unsupervised anomaly detection techniques.
+This report summarizes the findings from analyzing a credit card transaction dataset to detect fraudulent activities. The analysis covers both supervised learning using Logistic Regression, Random Forest and XGBoost , as well as unsupervised anomaly detection techniques.
 
 # 1. Supervised Learning
 
