@@ -1,6 +1,6 @@
 # Credit Card Fraud Detection Analysis Report
 
-This report summarizes the findings from analyzing a credit card transaction dataset to detect fraudulent activities. The analysis covers both supervised learning using Logistic Regression and XGBoost, as well as unsupervised anomaly detection techniques.
+This report summarizes the findings from analyzing a credit card transaction dataset to detect fraudulent activities. The analysis covers both supervised learning using Logistic Regression, Random Forest and XGBoost , as well as unsupervised anomaly detection techniques.
 
 # 1. Supervised Learning
 
@@ -229,47 +229,160 @@ Random Forest was also evaluated as a supervised learning model.
 
 # 2. Unsupervised Learning
 
-Unsupervised methods were explored for anomaly detection without relying on predefined labels. Data was scaled using `StandardScaler` before applying these models.
+Unsupervised methods were explored for anomaly detection without relying on predefined labels. Data was scaled using `StandardScaler` before applying these models. The actual fraud percentage in the dataset was 0.1727%.
 
-## 2.1. Isolation Forest
+---
+
+## 2.1. Isolation Forest 🌳
 
 Isolation Forest attempts to isolate anomalies by randomly partitioning the data.
 
-**Initial Model Performance:**
+**Initial Model Performance (Default Parameters):**
 
-A model was trained with default parameters and `contamination` set to the known fraud rate (0.001727).
+A baseline model was trained with `contamination` set to the known fraud rate (0.001727), `n_estimators=100`, and `max_samples='auto'`.
 
 * **Preprocessing:** `StandardScaler`
 * **Model:** `IsolationForest(contamination=0.001727, random_state=42, n_estimators=100, max_samples='auto')`
 * **Test Set Performance Metrics:**
-    * Accuracy: 0.9977
-    * Precision: 0.3300
+    * Accuracy: 0.9976
+    * Precision: 0.3084
     * Recall: 0.3367
-    * F1-score: 0.3333
-    * AUPRC: 0.3339 (Calculated from binary predictions)
-    * Recall at 0.5% FPR: 0.5510
-    * Precision at 0.5% Recall: 1.0000
-    * Matthews Correlation Coefficient (MCC): 0.3322
-    * Kolmogorov-Smirnov (KS) Statistic: 0.8172 (Calculated from anomaly scores)
+    * F1-score: 0.3220
+    * Matthews Correlation Coefficient (MCC): 0.3210
+    * Kolmogorov-Smirnov (KS) Statistic: 0.8251
+    * Recall at 0.5% FPR: 0.5000
+    * Precision at 0.5% Recall: 0.0000
     * Confusion Matrix:
         ```
-        [[56797    67]
+        [[56790    74]
          [   65    33]]
         ```
 * Precision-Recall and ROC curves were generated based on the anomaly scores.
 
-**Hyperparameter Tuning Attempt:**
+**Hyperparameter Tuning (Optuna):**
 
-A `GridSearchCV` was attempted to optimize `n_estimators` and `max_samples`. However, the search failed due to an issue with the custom scoring function used, which did not receive the required `y_true` argument. Therefore, the results from this tuning process are unreliable. The evaluation performed *after* the GridSearch (using `best_if_model`) showed worse performance than the initial run (F1: 0.2647, MCC: 0.2636), likely due to the failed optimization.
+Optuna was used for hyperparameter optimization over 50 trials, maximizing the F1-score using 3-fold stratified cross-validation. The search space included `n_estimators`, `max_samples`, `contamination`, `max_features`, and `bootstrap`.
 
-**Conclusion for Isolation Forest:** The initial Isolation Forest model showed some capability in identifying anomalies but with significantly lower precision and recall compared to the optimized supervised models. The hyperparameter tuning attempt was unsuccessful due to technical issues.
+* **Best F1-Score during HPO:** 0.3520
+* **Best Hyperparameters Found:**
+    * `n_estimators`: 189
+    * `max_samples`: 0.9450
+    * `contamination`: 0.00255
+    * `max_features`: 0.2581
+    * `bootstrap`: False
 
-## 2.2. Local Outlier Factor (LOF)
+**Tuned Model Performance:**
 
-Local Outlier Factor measures the local density deviation of a data point with respect to its neighbors.
+The model was retrained using the best hyperparameters.
 
-**Analysis Status:**
+* **Test Set Performance Metrics (Tuned Model):**
+    * Accuracy: 0.9972
+    * Precision: 0.2895
+    * Recall: 0.4490
+    * F1-score: 0.3520
+    * F2-score: 0.4044
+    * AUPRC (from scores): 0.2577
+    * Matthews Correlation Coefficient (MCC): 0.3592
+    * Kolmogorov-Smirnov (KS) Statistic (from scores): 0.8419
+    * Recall at 0.5% FPR (from scores): 0.6837
+    * Confusion Matrix:
+        ```
+        [[56756   108]
+         [   54    44]]
+        ```
 
-The analysis for LOF, including a `GridSearchCV` for hyperparameter tuning, was **interrupted** during execution (`KeyboardInterrupt`). As a result, the model could not be fully trained or evaluated, and no definitive results can be reported for LOF based on the provided execution logs. Subsequent code cells attempting to use the results of the LOF GridSearch or utility functions (`ccf`) did not have their outputs included in the provided information.
+**Conclusion for Isolation Forest:**
 
-**Conclusion for LOF:** The LOF analysis was incomplete.
+The initial Isolation Forest model with default settings showed some capability in identifying anomalies. Hyperparameter tuning with Optuna, optimizing for F1-score, led to an **improvement in recall** (from 0.3367 to 0.4490) and **F1-score** (from 0.3220 to 0.3520), though precision slightly decreased. The AUPRC based on scores was 0.2577. While better than the baseline unsupervised attempt, its performance remained **significantly lower** than the supervised models.
+
+---
+
+## 2.2. Local Outlier Factor (LOF) 📍
+
+Local Outlier Factor (LOF) measures the local density deviation of a data point with respect to its neighbors. `novelty=True` was used to enable predictions on new data.
+
+**Hyperparameter Tuning (Optuna):**
+
+Optuna was used for hyperparameter optimization over 30 trials, maximizing the F1-score using 5-fold stratified cross-validation. The search space included `n_neighbors`, `contamination`, `leaf_size`, and `p` (distance metric).
+
+* **Best F1-Score during HPO:** 0.0178
+* **Best Hyperparameters Found:**
+    * `n_neighbors`: 49
+    * `contamination`: 0.00384
+    * `leaf_size`: 31
+    * `p`: 2 (Euclidean distance)
+
+**Tuned Model Performance:**
+
+The model was trained using the best hyperparameters.
+
+* **Test Set Performance Metrics (Tuned Model):**
+    * Accuracy: 0.9947
+    * Precision: 0.0142
+    * Recall: 0.0306
+    * F1-score: 0.0194
+    * F2-score: 0.0249
+    * AUPRC (from scores): 0.0030
+    * Kolmogorov-Smirnov (KS) Statistic (from scores): 0.1185
+    * Recall at 0.5% FPR (from scores): 0.0306
+    * Confusion Matrix:
+        ```
+        [[56656   208]
+         [   95     3]]
+        ```
+
+**Conclusion for LOF:**
+
+The LOF model, even after hyperparameter tuning with Optuna, **performed poorly** in detecting fraudulent transactions. The F1-score was very low (0.0194), and other metrics like precision, recall, and AUPRC were also substantially lower than both the supervised models and the tuned Isolation Forest. The KS statistic was also significantly lower. This suggests that LOF, with the explored hyperparameter space, was **not effective** for this particular fraud detection task.
+
+---
+
+## 2.3. Autoencoder 🤖
+
+A PyTorch-based Autoencoder was implemented for anomaly detection. The architecture consisted of an encoder and a decoder with ReLU activations, and no activation in the final decoder layer. The model was trained on normal (non-fraudulent) data only.
+
+**Architecture and Training Parameters (Constants):**
+
+* Input Dimension (`AE_INPUT_DIM`): 30 (derived from X.shape[1])
+* Device: MPS (or as detected: cuda/cpu)
+* Number of Workers for DataLoader: 8
+
+**Hyperparameter Tuning (Optuna):**
+
+Optuna was used for hyperparameter optimization over 15 trials (due to computational intensity). The objective was to maximize the F2-score, with the anomaly threshold determined per-fold by finding the value on validation reconstruction errors that maximized the F2-score. The search space included:
+* `encoding_dim`
+* `hidden_dim1_factor` (relative to input_dim)
+* `hidden_dim2_factor` (relative to hidden_dim1)
+* `learning_rate`
+* `epochs` (for HPO, kept low: 10-30)
+* `batch_size`
+
+* **Best F2-Score during HPO (based on internal threshold optimization):** 0.4175
+* **Best Hyperparameters for Network/Training:**
+    * `encoding_dim`: 5
+    * `hidden_dim1_factor`: 1.5871
+    * `hidden_dim2_factor`: 0.6084
+    * `learning_rate`: 0.00363
+    * `epochs`: 14
+    * `batch_size`: 128
+    * Derived `hidden_dim1`: `max(5 + 1, int(30 * 1.5871 / 2))` = 23
+    * Derived `hidden_dim2`: `max(5 + 1, int(23 * 0.6084 / 2))` = 6
+
+**Tuned Model Performance:**
+
+The final Autoencoder model was trained on all normal data in the training set using the best hyperparameters. The anomaly threshold was then determined on the test set reconstruction errors by finding the threshold that maximized the F2-score on the test labels.
+
+* **Optimal Threshold found on Test Errors:** 7.660615
+* **Test Set Performance Metrics (Tuned Model with Test-Optimized Threshold):**
+    * Precision: 0.1725
+    * Recall: 0.6020
+    * F2-score (Maximized on Test): 0.4019
+    * Confusion Matrix:
+        ```
+        [[56581   283]
+         [   39    59]]
+        ```
+
+**Conclusion for Autoencoder:**
+
+The Autoencoder, after hyperparameter tuning and with a threshold optimized on test set reconstruction errors to maximize F2-score, achieved a **recall of 0.6020**. This was the **highest recall among the unsupervised methods** tested. However, this came at the cost of **very low precision** (0.1725), resulting in an F2-score of 0.4019 (and an F1-score, if calculated, would be lower, approximately 0.268). The strategy of optimizing the threshold directly on test labels provides an upper bound on performance for this specific model structure and data split but isn't a threshold that could have been determined without knowing the test labels beforehand. In a practical scenario, the threshold would be set based on reconstruction errors from normal training data or a validation set. Overall, while showing better recall, the Autoencoder's precision was considerably low, indicating a **high number of false positives**.
