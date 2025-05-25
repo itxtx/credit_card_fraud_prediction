@@ -273,3 +273,6 @@ Local Outlier Factor measures the local density deviation of a data point with r
 The analysis for LOF, including a `GridSearchCV` for hyperparameter tuning, was **interrupted** during execution (`KeyboardInterrupt`). As a result, the model could not be fully trained or evaluated, and no definitive results can be reported for LOF based on the provided execution logs. Subsequent code cells attempting to use the results of the LOF GridSearch or utility functions (`ccf`) did not have their outputs included in the provided information.
 
 **Conclusion for LOF:** The LOF analysis was incomplete.
+
+## 2.3. Autoencoder
+
