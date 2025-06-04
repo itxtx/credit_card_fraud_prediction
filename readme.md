@@ -233,7 +233,7 @@ Unsupervised methods were explored for anomaly detection without relying on pred
 
 ---
 
-## 2.1. Isolation Forest 🌳
+## 2.1. Isolation Forest
 
 Isolation Forest attempts to isolate anomalies by randomly partitioning the data.
 
@@ -297,7 +297,7 @@ The initial Isolation Forest model with default settings showed some capability 
 
 ---
 
-## 2.2. Local Outlier Factor (LOF) 📍
+## 2.2. Local Outlier Factor (LOF)
 
 Local Outlier Factor (LOF) measures the local density deviation of a data point with respect to its neighbors. `novelty=True` was used to enable predictions on new data.
 
@@ -337,7 +337,7 @@ The LOF model, even after hyperparameter tuning with Optuna, **performed poorly*
 
 ---
 
-## 2.3. Autoencoder 🤖
+## 2.3. Autoencoder 
 
 A PyTorch-based Autoencoder was implemented for anomaly detection. The architecture consisted of an encoder and a decoder with ReLU activations, and no activation in the final decoder layer. The model was trained on normal (non-fraudulent) data only.
 
