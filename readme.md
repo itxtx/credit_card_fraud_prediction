@@ -79,7 +79,7 @@ XGBoost (Extreme Gradient Boosting) was evaluated as a more complex supervised l
 **Hyperparameter Tuning (RandomizedSearchCV):**
 
 * A broad `RandomizedSearchCV` (75 iterations, 5-fold CV) was performed, optimizing for F1-score. It explored various XGBoost hyperparameters (`n_estimators`, `learning_rate`, `max_depth`, `subsample`, `colsample_bytree`, `gamma`, `reg_alpha`, `reg_lambda`) combined with different resampling strategies or `scale_pos_weight`.
-* **Note:** The search process was interrupted (`KeyboardInterrupt`). However, the `best_estimator_` found *before* the interruption was evaluated.
+
 * **Best Model Found (Pre-Interruption) & Performance:**
     * The best configuration identified involved **no resampling** and `scale_pos_weight=1` (i.e., not using the calculated weight). Specific XGBoost parameters were determined by the search but not explicitly printed before interruption.
     * **Test Set Performance Metrics:**
